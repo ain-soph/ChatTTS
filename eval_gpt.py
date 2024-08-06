@@ -17,15 +17,15 @@ import ChatTTS.model.dvae
 
 
 def main():
-    parser = argparse.ArgumentParser(description='ChatTTS demo Launch')
-    parser.add_argument('--text', type=str, required=True)
-    parser.add_argument('--speaker', type=str)
-    parser.add_argument('--save_path', type=str, default='output')
+    parser = argparse.ArgumentParser(description="ChatTTS demo Launch")
+    parser.add_argument("--text", type=str, required=True)
+    parser.add_argument("--speaker", type=str)
+    parser.add_argument("--save_path", type=str, default="output")
 
-    parser.add_argument('--dvae_path', type=str)
-    parser.add_argument('--decoder_path', type=str)
-    parser.add_argument('--gpt_path', type=str)
-    parser.add_argument('--speaker_embeds_path', type=str)
+    parser.add_argument("--dvae_path", type=str)
+    parser.add_argument("--decoder_path", type=str)
+    parser.add_argument("--gpt_path", type=str)
+    parser.add_argument("--speaker_embeds_path", type=str)
     args = parser.parse_args()
     text: str = args.text
     speaker: str | None = args.speaker
@@ -68,7 +68,11 @@ def main():
         ),
     )
     print(decoder_wav[0].shape)
-    torchaudio.save(save_path+'_decoder.wav', torch.from_numpy(decoder_wav[0]).view(1, -1), sample_rate=24_000)
+    torchaudio.save(
+        save_path + "_decoder.wav",
+        torch.from_numpy(decoder_wav[0]).view(1, -1),
+        sample_rate=24_000,
+    )
 
     dvae_wav = chat.infer(
         [text],
@@ -78,8 +82,12 @@ def main():
         ),
     )
     print(dvae_wav[0].shape)
-    torchaudio.save(save_path+'_dvae.wav', torch.from_numpy(dvae_wav[0]).view(1, -1), sample_rate=24_000)
+    torchaudio.save(
+        save_path + "_dvae.wav",
+        torch.from_numpy(dvae_wav[0]).view(1, -1),
+        sample_rate=24_000,
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
