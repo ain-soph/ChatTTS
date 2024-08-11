@@ -1,5 +1,5 @@
 """
-CUDA_VISIBLE_DEVICES=0 python validate.py --color --data_path data/Xz/Bekki.list --tar_path data/Xz.tar --batch_size 16
+CUDA_VISIBLE_DEVICES=0 python examples/finetune/validate.py --color --data_path data/Xz/Bekki.list --tar_path data/Xz.tar --batch_size 16
 --gpt_path ./saved_models/gpt.pth --decoder_path ./saved_models/decoder.pth --speaker_embeds_path ./saved_models/speaker_embeds.npz
 --dvae_path ./saved_models/dvae.pth
 
@@ -18,8 +18,8 @@ import numpy as np
 import ChatTTS
 import ChatTTS.model.gpt
 import ChatTTS.model.dvae
-from utils.dataset import XzListTar
-from utils.train import train_autoencoder, train_gpt
+from ChatTTS.utils.finetune.dataset import XzListTar
+from ChatTTS.utils.finetune.train import train_autoencoder, train_gpt
 
 IGNORE_TOKEN_ID = LabelSmoother.ignore_index
 logging.basicConfig(level=logging.ERROR)
