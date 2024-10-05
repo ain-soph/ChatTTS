@@ -13,7 +13,7 @@ from vocos.pretrained import instantiate_class
 from huggingface_hub import snapshot_download
 
 from .config import Config
-from .model import DVAE, GPT, gen_logits, Tokenizer, Speaker
+from .model import DVAE, Embed, GPT, gen_logits, Tokenizer, Speaker
 from .utils import (
     check_all_assets,
     download_all_assets,
@@ -46,7 +46,7 @@ class Chat:
 
     def has_loaded(self, use_decoder=False):
         not_finish = False
-        check_list = ["vocos", "gpt", "tokenizer"]
+        check_list = ["vocos", "gpt", "tokenizer", "embed"]
 
         if use_decoder:
             check_list.append("decoder")
@@ -97,7 +97,7 @@ class Chat:
                 try:
                     download_path = snapshot_download(
                         repo_id="2Noise/ChatTTS",
-                        allow_patterns=["*.pt", "*.yaml", "*.json"],
+                        allow_patterns=["*.pt", "*.yaml", "*.json", "*.safetensors"],
                     )
                 except:
                     download_path = None
@@ -127,6 +127,7 @@ class Chat:
         coef: Optional[torch.Tensor] = None,
         use_flash_attn=False,
         use_vllm=False,
+        experimental: bool = False,
     ) -> bool:
         download_path = self.download_models(source, force_redownload, custom_path)
         if download_path is None:
@@ -137,6 +138,7 @@ class Chat:
             coef=coef,
             use_flash_attn=use_flash_attn,
             use_vllm=use_vllm,
+            experimental=experimental,
             **{
                 k: os.path.join(download_path, v)
                 for k, v in asdict(self.config.path).items()
@@ -148,7 +150,7 @@ class Chat:
         self.normalizer.destroy()
         del self.normalizer
         del self.sha256_map
-        del_list = ["vocos", "gpt", "decoder", "dvae", "tokenizer"]
+        del_list = ["vocos", "gpt", "decoder", "dvae", "tokenizer", "embed"]
         for module in del_list:
             if hasattr(self, module):
                 delattr(self, module)
@@ -226,6 +228,7 @@ class Chat:
         vocos_ckpt_path: str = None,
         dvae_ckpt_path: str = None,
         gpt_ckpt_path: str = None,
+        embed_path: str = None,
         decoder_ckpt_path: str = None,
         tokenizer_path: str = None,
         device: Optional[torch.device] = None,
@@ -233,9 +236,10 @@ class Chat:
         coef: Optional[str] = None,
         use_flash_attn=False,
         use_vllm=False,
+        experimental: bool = False,
     ):
         if device is None:
-            device = select_device()
+            device = select_device(experimental=experimental)
             self.logger.info("use device %s", str(device))
         self.device = device
         self.device_gpt = device if "mps" not in str(device) else torch.device("cpu")
@@ -268,6 +272,7 @@ class Chat:
                 vq_config=asdict(self.config.dvae.vq),
                 dim=self.config.dvae.decoder.idim,
                 coef=coef,
+                device=device,
             )
             .to(device)
             .eval()
@@ -278,8 +283,19 @@ class Chat:
         self.dvae = dvae
         self.logger.log(logging.INFO, "dvae loaded.")
 
+        embed = Embed(
+            self.config.embed.hidden_size,
+            self.config.embed.num_audio_tokens,
+            self.config.embed.num_text_tokens,
+            self.config.embed.num_vq,
+        )
+        embed.from_pretrained(embed_path, device=device)
+        self.embed = embed.to(device)
+        self.logger.log(logging.INFO, "embed loaded.")
+
         gpt = GPT(
             gpt_config=asdict(self.config.gpt),
+            embed=self.embed,
             use_flash_attn=use_flash_attn,
             use_vllm=use_vllm,
             device=device,
@@ -287,20 +303,22 @@ class Chat:
             logger=self.logger,
         ).eval()
         assert gpt_ckpt_path, "gpt_ckpt_path should not be None"
-        gpt.from_pretrained(gpt_ckpt_path)
+        gpt.from_pretrained(gpt_ckpt_path, embed_path, experimental=experimental)
         gpt.prepare(compile=compile and "cuda" in str(device))
         self.gpt = gpt
+        self.logger.log(logging.INFO, "gpt loaded.")
 
         self.speaker = Speaker(
             self.config.gpt.hidden_size, self.config.spk_stat, device
         )
-        self.logger.log(logging.INFO, "gpt loaded.")
+        self.logger.log(logging.INFO, "speaker loaded.")
 
         decoder = (
             DVAE(
                 decoder_config=asdict(self.config.decoder),
                 dim=self.config.decoder.idim,
                 coef=coef,
+                device=device,
             )
             .to(device)
             .eval()
@@ -525,7 +543,7 @@ class Chat:
                 ),
             ]
 
-        emb = gpt(input_ids, text_mask)
+        emb = self.embed(input_ids, text_mask)
 
         del text_mask
 
@@ -623,7 +641,7 @@ class Chat:
                 attentions=[],
             )
 
-        emb = gpt(input_ids, text_mask)
+        emb = self.embed(input_ids, text_mask)
 
         del text_mask
 
