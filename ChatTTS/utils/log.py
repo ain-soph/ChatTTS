@@ -118,8 +118,7 @@ class SmoothedValue:
         """
         if not (dist.is_available() and dist.is_initialized()):
             return
-        t = torch.tensor([self.count, self.total],
-                         dtype=torch.float64, device="cuda")
+        t = torch.tensor([self.count, self.total], dtype=torch.float64, device="cuda")
         dist.barrier()
         dist.all_reduce(t)
         t = t.tolist()
@@ -215,8 +214,7 @@ class MetricLogger:
         indent: int = 0,
         **kwargs,
     ):
-        self.meters: defaultdict[str,
-                                 SmoothedValue] = defaultdict(SmoothedValue)
+        self.meters: defaultdict[str, SmoothedValue] = defaultdict(SmoothedValue)
         self.create_meters(**kwargs)
         self.delimiter = delimiter
         self.meter_length = meter_length
@@ -239,8 +237,7 @@ class MetricLogger:
             MetricLogger: return ``self`` for stream usage.
         """
         for k, v in kwargs.items():
-            self.meters[k] = SmoothedValue(
-                fmt="{global_avg:.3f}" if v is None else v)
+            self.meters[k] = SmoothedValue(fmt="{global_avg:.3f}" if v is None else v)
         return self
 
     def update(self, n: int = 1, **kwargs: float) -> Self:
@@ -317,8 +314,7 @@ class MetricLogger:
         if attr in vars(self):  # TODO: use hasattr
             return vars(self)[attr]
         raise AttributeError(
-            "'{}' object has no attribute '{}'".format(
-                type(self).__name__, attr)
+            "'{}' object has no attribute '{}'".format(type(self).__name__, attr)
         )
 
     def __str__(self) -> str:
@@ -371,8 +367,7 @@ class MetricLogger:
             ).format(tqdm_header=tqdm_header, length=length, **ansi)
             offset = len(f"{{n_fmt:>{length}}}{{total_fmt}}") - 2 * length
             pattern = pattern.ljust(30 + offset + get_ansi_len(pattern))
-            time_str = self.get_str(
-                time="{elapsed}<{remaining}", cut_too_long=False)
+            time_str = self.get_str(time="{elapsed}<{remaining}", cut_too_long=False)
             bar_format = f"{pattern}{{desc}}{time_str}"
             iterator = tqdm_class(iterable, leave=False, bar_format=bar_format)
 
@@ -399,8 +394,7 @@ class MetricLogger:
                     _dict.update(
                         iter=f"{cur_iter_time:.3f} s", data=f"{cur_data_time:.3f} s"
                     )
-                iterator.set_description_str(
-                    self.get_str(**_dict, strip=False))
+                iterator.set_description_str(self.get_str(**_dict, strip=False))
             end = time.time()
         self.synchronize_between_processes()
         total_time = time.time() - start_time
@@ -414,8 +408,7 @@ class MetricLogger:
                 iter=f"{str(self.iter_time)} s", data=f"{str(self.data_time)} s"
             )
         _dict.update(time=total_time_str)
-        prints(self.delimiter.join(
-            [header, self.get_str(**_dict)]), indent=indent)
+        prints(self.delimiter.join([header, self.get_str(**_dict)]), indent=indent)
 
 
 class Logger:
